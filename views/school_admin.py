@@ -680,7 +680,7 @@ def render_school_admin():
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
                 db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Ogretmen_Nobeti").delete()
-            db.commit(); st.success("Temizlendi."); st.session_state.pop('ai_rapor_hi', None); st.rerun()
+            "Temizlendi."); st.session_state.pop('ai_rapor_hi', None); st.rerun()
 
         if 'ai_rapor_hi' in st.session_state: st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hi"]}</div>', unsafe_allow_html=True)
 
@@ -767,7 +767,7 @@ def render_school_admin():
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
                 db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Haftasonu").delete()
-            db.commit(); st.success("Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
+            "Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
 
         if 'ai_rapor_hs' in st.session_state: st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hs"]}</div>', unsafe_allow_html=True)
 
@@ -975,8 +975,20 @@ def render_school_admin():
                 obrans = f1.text_input("Branş")
                 osifre = f2.text_input("Şifre (Düz Metin)", value="1234")
                 if st.form_submit_button("➕ Yeni Öğretmen Ekle", type="primary") and oad and otc:
-                    db.add(User(school_id=okul.id,role="ogretmen",username=otc.strip(),email=f"{otc.strip()}@meb",password_hash=sifre_olustur(osifre),plain_password=osifre,name_surname=oad.strip(),branch=obrans.strip(),is_approved=True,status="Aktif"))
-                    db.commit();st.rerun()
+                    # 🔥 KORUMA: Önce bu TC sistemde var mı diye bakıyoruz
+                    mevcut = db.query(User).filter(User.username == otc.strip()).first()
+                    if mevcut:
+                        st.error("❌ Bu TC / Kullanıcı Adı zaten sistemde kayıtlı!")
+                    else:
+                        yeni_ogr = User(school_id=okul.id,role="ogretmen",username=otc.strip(),email=f"{otc.strip()}@meb",password_hash=sifre_olustur(osifre),plain_password=osifre,name_surname=oad.strip(),branch=obrans.strip(),is_approved=True,status="Aktif")
+                        db.add(yeni_ogr)
+                        try:
+                            db.commit()
+                            st.success("✅ Öğretmen başarıyla eklendi!")
+                        except Exception:
+                            db.rollback() # Çökmeyi engelle
+                            st.error("❌ Veritabanı hatası. Bu kayıt eklenemedi.")
+                        st.rerun()
 
             st.write("---")
             if st.button("🗑️ Pasif Olanları Toplu Sil", type="primary"):
