@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dargeçit MEB | Nöbet Sistemi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <nav class="bg-red-700 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-school text-2xl"></i>
+                <span class="font-bold text-xl tracking-wider">Dargeçit MEB Nöbet Paneli</span>
+            </div>
+            <div class="text-sm">
+                <i class="fas fa-user-circle"></i> Tasarımcı: Sıraç AKSAN
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-red-600">
+                <h2 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-file-excel text-green-600"></i> Öğretmen Listesi İşlemleri</h2>
+                <p class="text-gray-600 mb-4 text-sm">Öğretmen listesini excel formatında indirin, doldurun ve sisteme yükleyin.</p>
+                <div class="flex space-x-4">
+                    <button id="btn-download" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition">
+                        <i class="fas fa-download"></i> Şablon İndir
+                    </button>
+                    
+                    <input type="file" id="file-input" style="display: none;" accept=".xlsx, .xls">
+                    <button id="btn-upload" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition">
+                        <i class="fas fa-upload"></i> Excel Yükle
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
+                <h2 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-calendar-alt text-blue-600"></i> Nöbet Dağıtımı (Yapay Zeka)</h2>
+                <p class="text-gray-600 mb-4 text-sm">Adil ve dengeli nöbet dağıtım motorunu çalıştırın ve raporları alın.</p>
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white w-full py-2 rounded shadow transition font-bold">
+                    <i class="fas fa-robot"></i> Otomatik Dağıtımı Başlat
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+       <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 mb-6 mt-6">
+            <h2 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-users text-yellow-600"></i> Öğrenci Sınıf Nöbet Yönetimi</h2>
+            <p class="text-gray-600 mb-4 text-sm">Sınıf öğretmenleri için otomatik öğrenci nöbet çizelgesi oluşturun.</p>
+            <div class="flex space-x-4">
+                <button id="btn-std-download" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded shadow transition">
+                    <i class="fas fa-download"></i> Şablon İndir
+                </button>
+                <input type="file" id="std-file-input" style="display: none;" accept=".xlsx, .xls">
+                <button id="btn-std-upload" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow transition">
+                    <i class="fas fa-upload"></i> Öğrenci Excel Yükle
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-chalkboard-teacher text-red-700"></i> Kayıtlı Öğretmenler Listesi</h2>
+                <button onclick="manuelOgretmenEkle()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                    <i class="fas fa-plus"></i> Yeni Ekle
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-700">
+                            <th class="p-3 border-b">ID</th>
+                            <th class="p-3 border-b">Adı Soyadı</th>
+                            <th class="p-3 border-b">Branş</th>
+                            <th class="p-3 border-b">Telefon</th>
+                            <th class="p-3 border-b text-center">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ogretmen-tablosu">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+<div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 mb-6 mt-6">
+            <h2 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-users text-yellow-600"></i> Öğrenci Sınıf Nöbet Yönetimi</h2>
+            <p class="text-gray-600 mb-4 text-sm">Sınıf öğretmenleri için otomatik öğrenci nöbet çizelgesi oluşturun.</p>
+            <div class="flex space-x-4">
+                <button id="btn-std-download" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded shadow transition">
+                    <i class="fas fa-download"></i> Şablon İndir
+                </button>
+                <input type="file" id="std-file-input" style="display: none;" accept=".xlsx, .xls">
+                <button id="btn-std-upload" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow transition">
+                    <i class="fas fa-upload"></i> Öğrenci Excel Yükle
+                </button>
+            </div>
+        </div>
+        // Sayfa yüklendiğinde öğretmenleri getir
+        document.addEventListener("DOMContentLoaded", ogretmenleriYukle);
+
+        async function ogretmenleriYukle() {
+            const response = await fetch('/api/ogretmenler');
+            const ogretmenler = await response.json();
+            const tablo = document.getElementById('ogretmen-tablosu');
+            tablo.innerHTML = ''; // Önce temizle
+
+            ogretmenler.forEach(ogr => {
+                tablo.innerHTML += `
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="p-3">${ogr.id}</td>
+                        <td class="p-3 font-semibold">${ogr.name_surname}</td>
+                        <td class="p-3">${ogr.branch || '-'}</td>
+                        <td class="p-3">${ogr.phone || '-'}</td>
+                        <td class="p-3 text-center space-x-2">
+                            <button class="text-blue-500 hover:text-blue-700" title="Düzenle"><i class="fas fa-edit"></i></button>
+                            <button onclick="ogretmenSil(${ogr.id})" class="text-red-500 hover:text-red-700" title="Sil"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function ogretmenSil(id) {
+            if(confirm("Bu öğretmeni sistemden silmek istediğinize emin misiniz?")) {
+                await fetch(`/api/ogretmenler/${id}`, { method: 'DELETE' });
+                ogretmenleriYukle(); // Tabloyu yenile
+            }
+        }
+
+        async function manuelOgretmenEkle() {
+            const isim = prompt("Öğretmenin Adı ve Soyadı:");
+            if(!isim) return;
+            const brans = prompt("Branşı:");
+            const telefon = prompt("Telefon Numarası:");
+
+            await fetch('/api/ogretmenler', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name_surname: isim, branch: brans, phone: telefon })
+            });
+            ogretmenleriYukle(); // Tabloyu yenile
+        }
+    </script>
+
+</body>
+</html>
