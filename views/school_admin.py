@@ -767,7 +767,7 @@ st.rerun()
                 if ogr_guncelle:
                     ogr_guncelle.monthly_duty_count = max(0, (ogr_guncelle.monthly_duty_count or 0) - 1)
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
-                db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
+                st.success("Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Haftasonu").delete()
             "Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
 
