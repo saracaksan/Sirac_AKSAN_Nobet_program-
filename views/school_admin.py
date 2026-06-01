@@ -336,6 +336,10 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
 
     toplam_atanan = sabit_atanan = joker_atanan = ekstra_atanan = 0
     haftalik_nobetler = {ogr.id: {} for ogr in ogretmenler}  
+    
+    # 🔥 SİSTEM HAFIZASI: Algoritmaların kontrolden çıkmasını engelleyen kilitler
+    sabit_gun_kaydi = {}  
+    sabit_yer_kaydi = {}  
 
     def get_week_number(d): return d.isocalendar()[1]
 
@@ -381,6 +385,10 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
                         ogr.yearly_duty_count = (ogr.yearly_duty_count or 0)+1
                         atanan_b.append(hedef); gunluk_atanan.append(ogr.id)
                         haftalik_nobetler[ogr.id][week_num] = haftalik_nobetler[ogr.id].get(week_num,0)+1
+                        
+                        # Hafızaya al
+                        sabit_gun_kaydi[ogr.id] = hw
+                        sabit_yer_kaydi[ogr.id] = hedef
                         sabit_atanan+=1; toplam_atanan+=1
 
     # FAZ 2: BİRİNCİ NÖBETLER
@@ -400,6 +408,12 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
         ogr_primary  = []
         for o in ogretmenler:
             if o.id in gunluk_atanan: continue
+            
+            # 🔥 SİSTEM HAFIZASI DEVREDE: Eğer "Sabit Gün" algoritmalarından biri seçiliyse, gün kaymasını engelle
+            if (algoritma.startswith("1") or algoritma.startswith("2")) and o.id in sabit_gun_kaydi:
+                if sabit_gun_kaydi[o.id] != hw:
+                    continue
+                    
             izin = any(m.teacher_id==o.id and m.start_date<=islem_tarihi<=m.end_date for m in mazeretler)
             engel= any(dp.teacher_id==o.id and dp.blocked_date==islem_tarihi for dp in ozel_kapat)
             stat = STATUS_MAP.get(musaitlik.get(o.id,{}).get(hw,"🟢 1. Nöbet (Kesin İstiyorum)"), "primary")
@@ -410,18 +424,36 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
 
         for secilen in ogr_primary:
             if not bosta_bolgeler: break
-            hedef_bolge = bosta_bolgeler.pop(0)
-            bosta_idler = [b.id for b in [hedef_bolge]+bosta_bolgeler]
-            final_loc_id = siradaki_lokasyonu_bul(secilen.id, bosta_idler)
-            if final_loc_id and final_loc_id != hedef_bolge.id:
-                alt = next((b for b in [hedef_bolge]+bosta_bolgeler if b.id==final_loc_id), None)
-                if alt and alt in bosta_bolgeler: bosta_bolgeler.remove(alt); hedef_bolge = alt
+            
+            hedef_bolge = None
+            # 🔥 SABİT YER KORUMASI: Sadece "2. Algoritma" seçiliyse yeri kilitler
+            if algoritma.startswith("2") and secilen.id in sabit_yer_kaydi:
+                hedef_bolge = next((b for b in bosta_bolgeler if b.id == sabit_yer_kaydi[secilen.id]), None)
+                if hedef_bolge:
+                    bosta_bolgeler.remove(hedef_bolge)
+                else:
+                    continue # Hocanın yeri bu hafta başkası tarafından alınmışsa nöbet yazılmaz
+            
+            # Rotasyonlu yer ataması
+            if not hedef_bolge:
+                hedef_bolge = bosta_bolgeler.pop(0)
+                if not algoritma.startswith("2"): 
+                    bosta_idler = [b.id for b in [hedef_bolge]+bosta_bolgeler]
+                    final_loc_id = siradaki_lokasyonu_bul(secilen.id, bosta_idler)
+                    if final_loc_id and final_loc_id != hedef_bolge.id:
+                        alt = next((b for b in [hedef_bolge]+bosta_bolgeler if b.id==final_loc_id), None)
+                        if alt and alt in bosta_bolgeler: 
+                            bosta_bolgeler.remove(alt)
+                            hedef_bolge = alt
+                            
             nbt = DutySchedule(school_id=school_id,date=islem_tarihi,duty_type=duty_type,teacher_id=secilen.id,location_id=hedef_bolge.id,status="Asil")
             db.add(nbt); db.commit(); db.refresh(nbt)
             secilen.monthly_duty_count = (secilen.monthly_duty_count or 0)+1
             secilen.yearly_duty_count  = (secilen.yearly_duty_count  or 0)+1
             gunluk_atanan.append(secilen.id)
             haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
+            sabit_gun_kaydi[secilen.id] = hw
+            sabit_yer_kaydi[secilen.id] = hedef_bolge.id
             toplam_atanan+=1
 
     # FAZ 3: JOKER (İKİNCİ NÖBETLER)
@@ -441,6 +473,12 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
         ogr_joker = []
         for o in ogretmenler:
             if o.id in gunluk_atanan: continue
+            
+            # 🔥 SİSTEM HAFIZASI
+            if (algoritma.startswith("1") or algoritma.startswith("2")) and o.id in sabit_gun_kaydi:
+                if sabit_gun_kaydi[o.id] != hw:
+                    continue
+                    
             izin = any(m.teacher_id==o.id and m.start_date<=islem_tarihi<=m.end_date for m in mazeretler)
             engel= any(dp.teacher_id==o.id and dp.blocked_date==islem_tarihi for dp in ozel_kapat)
             stat = STATUS_MAP.get(musaitlik.get(o.id,{}).get(hw,"🟢 1. Nöbet (Kesin İstiyorum)"), "primary")
@@ -451,16 +489,36 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
 
         for secilen in ogr_joker:
             if not bosta_bolgeler: break
-            hedef_bolge = bosta_bolgeler.pop(0)
+            
+            hedef_bolge = None
+            if algoritma.startswith("2") and secilen.id in sabit_yer_kaydi:
+                hedef_bolge = next((b for b in bosta_bolgeler if b.id == sabit_yer_kaydi[secilen.id]), None)
+                if hedef_bolge:
+                    bosta_bolgeler.remove(hedef_bolge)
+                else: continue
+            
+            if not hedef_bolge:
+                hedef_bolge = bosta_bolgeler.pop(0)
+                if not algoritma.startswith("2"): 
+                    bosta_idler = [b.id for b in [hedef_bolge]+bosta_bolgeler]
+                    final_loc_id = siradaki_lokasyonu_bul(secilen.id, bosta_idler)
+                    if final_loc_id and final_loc_id != hedef_bolge.id:
+                        alt = next((b for b in [hedef_bolge]+bosta_bolgeler if b.id==final_loc_id), None)
+                        if alt and alt in bosta_bolgeler: 
+                            bosta_bolgeler.remove(alt)
+                            hedef_bolge = alt
+                            
             nbt = DutySchedule(school_id=school_id,date=islem_tarihi,duty_type=duty_type,teacher_id=secilen.id,location_id=hedef_bolge.id,status="Joker")
             db.add(nbt); db.commit(); db.refresh(nbt)
             secilen.monthly_duty_count = (secilen.monthly_duty_count or 0)+1
             secilen.yearly_duty_count  = (secilen.yearly_duty_count  or 0)+1
             gunluk_atanan.append(secilen.id)
             haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
+            sabit_gun_kaydi[secilen.id] = hw
+            sabit_yer_kaydi[secilen.id] = hedef_bolge.id
             joker_atanan+=1; toplam_atanan+=1
 
-    # FAZ 4: ÜÇÜNCÜ NÖBETLER (Eğer 'Katı Müsaitlik' algoritması seçilmediyse çalışır)
+    # FAZ 4: ÜÇÜNCÜ NÖBETLER (Ekstra ve Zorunlu Atama - Katı Müsaitlik Matrisi Seçilmediyse Çalışır)
     if algoritma != "5. Katı Müsaitlik Matrisi (Sadece İsteklere Göre)":
         for g in range(1, bit.day+1):
             islem_tarihi = date(yil,ay,g)
@@ -478,6 +536,11 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
             ogr_extra = []
             for o in ogretmenler:
                 if o.id in gunluk_atanan: continue
+                
+                if (algoritma.startswith("1") or algoritma.startswith("2")) and o.id in sabit_gun_kaydi:
+                    if sabit_gun_kaydi[o.id] != hw:
+                        continue
+                        
                 izin = any(m.teacher_id==o.id and m.start_date<=islem_tarihi<=m.end_date for m in mazeretler)
                 engel= any(dp.teacher_id==o.id and dp.blocked_date==islem_tarihi for dp in ozel_kapat)
                 stat = STATUS_MAP.get(musaitlik.get(o.id,{}).get(hw,"🟢 1. Nöbet (Kesin İstiyorum)"), "primary")
@@ -488,13 +551,33 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
 
             for secilen in ogr_extra:
                 if not bosta_bolgeler: break
-                hedef_bolge = bosta_bolgeler.pop(0)
+                
+                hedef_bolge = None
+                if algoritma.startswith("2") and secilen.id in sabit_yer_kaydi:
+                    hedef_bolge = next((b for b in bosta_bolgeler if b.id == sabit_yer_kaydi[secilen.id]), None)
+                    if hedef_bolge:
+                        bosta_bolgeler.remove(hedef_bolge)
+                    else: continue
+                
+                if not hedef_bolge:
+                    hedef_bolge = bosta_bolgeler.pop(0)
+                    if not algoritma.startswith("2"): 
+                        bosta_idler = [b.id for b in [hedef_bolge]+bosta_bolgeler]
+                        final_loc_id = siradaki_lokasyonu_bul(secilen.id, bosta_idler)
+                        if final_loc_id and final_loc_id != hedef_bolge.id:
+                            alt = next((b for b in [hedef_bolge]+bosta_bolgeler if b.id==final_loc_id), None)
+                            if alt and alt in bosta_bolgeler: 
+                                bosta_bolgeler.remove(alt)
+                                hedef_bolge = alt
+                                
                 nbt = DutySchedule(school_id=school_id,date=islem_tarihi,duty_type=duty_type,teacher_id=secilen.id,location_id=hedef_bolge.id,status="3. Nöbet")
                 db.add(nbt); db.commit(); db.refresh(nbt)
                 secilen.monthly_duty_count = (secilen.monthly_duty_count or 0)+1
                 secilen.yearly_duty_count  = (secilen.yearly_duty_count  or 0)+1
                 gunluk_atanan.append(secilen.id)
                 haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
+                sabit_gun_kaydi[secilen.id] = hw
+                sabit_yer_kaydi[secilen.id] = hedef_bolge.id
                 ekstra_atanan+=1; toplam_atanan+=1
 
     # FAZ 5: YEDEK ATAMA (Sadece Excel İçin)
