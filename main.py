@@ -23,7 +23,7 @@ from app.auth import sifre_dogrula, sifre_olustur
 # Veritabanı tablolarını oluştur
 Base.metadata.create_all(bind=engine)
 
-# Sayfa Ayarları (Yalnızca bir kez çağrılmalıdır)
+# Sayfa Ayarları (Yalnızca bir kez en başta çağrılmalıdır)
 st.set_page_config(page_title="Nöbet Yönetim Sistemi v4.0", page_icon="🏫", layout="wide", initial_sidebar_state="collapsed")
 
 # Session State Başlatma
@@ -96,13 +96,13 @@ SINIF_KILAVUZ_METNI = """
 @st.dialog("🏫 Okul İdaresi Nöbet Sistemi Kullanım Kılavuzu", width="large")
 def okul_kilavuz_popup():
     st.markdown(OKUL_KILAVUZ_METNI, unsafe_allow_html=True)
-    if st.button("Kapat", key="kapat_okul_k"):
+    if st.button("Kapat", key="btn_popup_okul_kapat_secured"):
         st.rerun()
 
 @st.dialog("👩‍🏫 Sınıf Öğretmeni (Öğrenci) Nöbet Sistemi Kullanım Kılavuzu", width="large")
 def sinif_kilavuz_popup():
     st.markdown(SINIF_KILAVUZ_METNI, unsafe_allow_html=True)
-    if st.button("Kapat", key="kapat_sinif_k"):
+    if st.button("Kapat", key="btn_popup_sinif_kapat_secured"):
         st.rerun()
 
 # =====================================================================
@@ -111,11 +111,11 @@ def sinif_kilavuz_popup():
 def giris_ekrani():
     db = get_db()
     
-    # 🔥 POSTGRESQL UYUMLU SÜPER ADMİN OLUŞTURUCU (school_id=None yapıldı)
+    # SÜPER ADMİN HESABI YOKSA OTOMATİK OLUŞTUR (school_id=None ile PostgreSQL kısıtlaması aşılmıştır)
     super_admin_var = db.query(User).filter(User.role == "super_admin").first()
     if not super_admin_var:
         db.add(User(
-            school_id=None,  # 0 yerine None yazarak yabancı anahtar hatasını kökten çözdük
+            school_id=None, 
             role="super_admin", 
             username="admin", 
             email="admin", 
@@ -141,97 +141,14 @@ def giris_ekrani():
             <p style="color:#64748b;font-size:0.95rem;font-weight:500;">Sıraç Aksan — Profesyonel AI Nöbet Otomasyonu v4.0</p>
         </div>""", unsafe_allow_html=True)
 
-        # KULLANIM KILAVUZU BUTONLARI
-        st.markdown('<p style="text-align:center; font-weight:600; color:#1e293b; margin-bottom:10px;">Sistemimizi yakından tanımak için kılavuzlarimizi inceleyin:</p>', unsafe_allow_html=True)
-        k1, k2 = st.columns(2)
-        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True, key="btn_ana_idareci_kilavuz"):
-            okul_kilavuz_popup()
-        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True, key="btn_ana_sinif_kilavuz"):
-            sinif_kilavuz_popup()
-        
-        st.write("<br>", unsafe_allow_html=True)
-
-        # SEKMELER (Giriş, Okul Kayıt, Öğretmen Kayıt)
-        t_g, t_k, t_o = st.tabs(["🔑 Giriş Yap", "🏫 Okul Kayıt", "👩‍🏫 Öğretmen Kayıt"])
-
-        with t_g:
-            k_adi = st.text_input("Kullanıcı Adı", placeholder="admin, tc_kimlik, mudur123 vs.")
-            sif   = st.text_input("Şifre", type="password")
-            if st.button("Giriş Yap", type="primary", use_container_width=True):
-                k  = db.query(User).filter(User.username == k_adi).first()
-                if k and sifre_dogrula(sif, k.password_hash):
-                    if not k.is_approved:
-                        st.error("❌ Hesabınız / Okulunuz henüz Süper Admin tarafından onaylanmamış!")
-                    else:
-                        st.session_state['kullanici_id']   = k.id
-                        st.session_state['kullanici_rolu'] = k.role
-                        st.rerun()
-                else: st.error("❌ Kullanıcı adı veya şifre hatalı!")
-
-        with t_k:
-            st.markdown('<div style="background:#eff6ff; border-left:4px solid #1d4ed8; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">Okul idaresi olarak yeni bir okul profili oluşturun. Öğretmenlerinizi daha sonra içeriden ekleyebilir veya öğretmenlerin kendilerinin kayıt olmasını isteyebilirsiniz.</div>', unsafe_allow_html=True)
-            o_ad = st.text_input("Okul Adı")
-            m_ad = st.text_input("Müdür Adı Soyadı")
-            k_a  = st.text_input("İdareci Kullanıcı Adı (Sisteme Giriş İçin)")
-            sf   = st.text_input("Şifre Belirleyin", type="password")
-            if st.button("Okulu Kaydet", type="primary", use_container_width=True):
-                if o_ad and m_ad and k_a and sf:
-                    if db.query(User).filter(User.username == k_a.strip()).first():
-                        st.error("❌ Bu kullanıcı adı zaten kayıtlı.")
-                    else:
-                        oto_onay = sys_set.auto_approve_schools
-                        y_o = School(kurum_kodu="000", name=o_ad.strip(), manager_name=m_ad.strip(), email="mail", is_approved=oto_onay)
-                        db.add(y_o); db.commit(); db.refresh(y_o)
-                        db.add(User(school_id=y_o.id, role="okul_idare", username=k_a.strip(), email="mail", password_hash=sifre_olustur(sf), name_surname=m_ad.strip(), is_approved=oto_onay))
-                        db.commit()
-                        if oto_onay: st.success("✅ Okul kaydedildi! Giriş yapabilirsiniz.")
-                        else: st.info("✅ Kayıt alındı. Ancak Süper Admin onayından sonra sisteme giriş yapabileceksiniz.")
-                else: st.error("❌ Tüm alanları doldurun.")
-                
-        with t_o:
-            okullar = db.query(School).filter(School.is_approved == True).all()
-            if not okullar:
-                st.warning("Sisteme kayıtlı ve onaylı bir okul bulunamadı. Lütfen önce okul idarenizin sisteme okul kaydını yapmasını bekleyin.")
-            else:
-                st.markdown('<div style="background:#eff6ff; border-left:4px solid #1d4ed8; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">Görev yaptığınız okulu seçerek kendi öğretmen profilinizi oluşturun. Anında kendi sınıf nöbet çizelgenizi hazırlamaya başlayabilirsiniz.</div>', unsafe_allow_html=True)
-                secili_okul = st.selectbox("Görev Yaptığınız Okul", [(o.id, o.name) for o in okullar], format_func=lambda x: x[1])
-                ogr_ad = st.text_input("Ad Soyad")
-                ogr_tc = st.text_input("TC Kimlik No / Kullanıcı Adı")
-                ogr_brans = st.text_input("Branş (Örn: Sınıf Öğretmeni, Matematik)")
-                ogr_sif = st.text_input("Şifrenizi Belirleyin", type="password")
-                
-                if st.button("Öğretmen Hesabımı Oluştur", type="primary", use_container_width=True):
-                    if ogr_ad and ogr_tc and ogr_sif and secili_okul:
-                        if db.query(User).filter(User.username == ogr_tc.strip()).first():
-                            st.error("❌ Bu Kullanıcı Adı / TC zaten sistemde kayıtlı.")
-                        else:
-                            yeni_ogr = User(
-                                school_id=secili_okul[0],
-                                role="ogretmen",
-                                username=ogr_tc.strip(),
-                                email=f"{ogr_tc.strip()}@meb",
-                                password_hash=sifre_olustur(ogr_sif),
-                                name_surname=ogr_ad.strip(),
-                                branch=ogr_brans.strip(),
-                                is_approved=True,
-                                status="Aktif",
-                                monthly_duty_count=0,
-                                yearly_duty_count=0
-                            )
-                            db.add(yeni_ogr)
-                            db.commit()
-                            st.success("✅ Kaydınız başarıyla oluşturuldu! 'Giriş Yap' sekmesinden sisteme girebilirsiniz.")
-                    else:
-                        st.error("❌ Lütfen Okul, Ad Soyad, Kullanıcı Adı ve Şifre alanlarını boş bırakmayın.")
-
         # -------------------------------------------------------------
-        # KULLANIM KILAVUZU BUTONLARI (POPUP TETİKLEYİCİLER)
+        # KULLANIM KILAVUZU BUTONLARI (Key Parametreleri Tamamen Güçlendirildi)
         # -------------------------------------------------------------
         st.markdown('<p style="text-align:center; font-weight:600; color:#1e293b; margin-bottom:10px;">Sistemimizi yakından tanımak için kılavuzlarımızı inceleyin:</p>', unsafe_allow_html=True)
         k1, k2 = st.columns(2)
-        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True):
+        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True, key="secured_key_btn_idareci_kilavuz_oku"):
             okul_kilavuz_popup()
-        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True):
+        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True, key="secured_key_btn_sinif_kilavuz_oku"):
             sinif_kilavuz_popup()
         
         st.write("<br>", unsafe_allow_html=True)
@@ -240,9 +157,9 @@ def giris_ekrani():
         t_g, t_k, t_o = st.tabs(["🔑 Giriş Yap", "🏫 Okul Kayıt", "👩‍🏫 Öğretmen Kayıt"])
 
         with t_g:
-            k_adi = st.text_input("Kullanıcı Adı", placeholder="admin, tc_kimlik, mudur123 vs.")
-            sif   = st.text_input("Şifre", type="password")
-            if st.button("Giriş Yap", type="primary", use_container_width=True):
+            k_adi = st.text_input("Kullanıcı Adı", placeholder="admin, tc_kimlik, mudur123 vs.", key="secured_input_username")
+            sif   = st.text_input("Şifre", type="password", key="secured_input_password")
+            if st.button("Giriş Yap", type="primary", use_container_width=True, key="secured_key_btn_giris_yap_submit"):
                 k  = db.query(User).filter(User.username == k_adi).first()
                 if k and sifre_dogrula(sif, k.password_hash):
                     if not k.is_approved:
@@ -255,11 +172,11 @@ def giris_ekrani():
 
         with t_k:
             st.markdown('<div style="background:#eff6ff; border-left:4px solid #1d4ed8; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">Okul idaresi olarak yeni bir okul profili oluşturun. Öğretmenlerinizi daha sonra içeriden ekleyebilir veya öğretmenlerin kendilerinin kayıt olmasını isteyebilirsiniz.</div>', unsafe_allow_html=True)
-            o_ad = st.text_input("Okul Adı")
-            m_ad = st.text_input("Müdür Adı Soyadı")
-            k_a  = st.text_input("İdareci Kullanıcı Adı (Sisteme Giriş İçin)")
-            sf   = st.text_input("Şifre Belirleyin", type="password")
-            if st.button("Okulu Kaydet", type="primary", use_container_width=True):
+            o_ad = st.text_input("Okul Adı", key="secured_input_school_name")
+            m_ad = st.text_input("Müdür Adı Soyadı", key="secured_input_manager_name")
+            k_a  = st.text_input("İdareci Kullanıcı Adı (Sisteme Giriş İçin)", key="secured_input_admin_username")
+            sf   = st.text_input("Şifre Belirleyin", type="password", key="secured_input_admin_password")
+            if st.button("Okulu Kaydet", type="primary", use_container_width=True, key="secured_key_btn_okulu_kaydet_submit"):
                 if o_ad and m_ad and k_a and sf:
                     if db.query(User).filter(User.username == k_a.strip()).first():
                         st.error("❌ Bu kullanıcı adı zaten kayıtlı.")
@@ -279,13 +196,13 @@ def giris_ekrani():
                 st.warning("Sisteme kayıtlı ve onaylı bir okul bulunamadı. Lütfen önce okul idarenizin sisteme okul kaydını yapmasını bekleyin.")
             else:
                 st.markdown('<div style="background:#eff6ff; border-left:4px solid #1d4ed8; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">Görev yaptığınız okulu seçerek kendi öğretmen profilinizi oluşturun. Anında kendi sınıf nöbet çizelgenizi hazırlamaya başlayabilirsiniz.</div>', unsafe_allow_html=True)
-                secili_okul = st.selectbox("Görev Yaptığınız Okul", [(o.id, o.name) for o in okullar], format_func=lambda x: x[1])
-                ogr_ad = st.text_input("Ad Soyad")
-                ogr_tc = st.text_input("TC Kimlik No / Kullanıcı Adı")
-                ogr_brans = st.text_input("Branş (Örn: Sınıf Öğretmeni, Matematik)")
-                ogr_sif = st.text_input("Şifrenizi Belirleyin", type="password")
+                secili_okul = st.selectbox("Görev Yaptığınız Okul", [(o.id, o.name) for o in okullar], format_func=lambda x: x[1], key="secured_select_school_for_teacher")
+                ogr_ad = st.text_input("Ad Soyad", key="secured_input_teacher_name")
+                ogr_tc = st.text_input("TC Kimlik No / Kullanıcı Adı", key="secured_input_teacher_tc")
+                ogr_brans = st.text_input("Branş (Örn: Sınıf Öğretmeni, Matematik)", key="secured_input_teacher_branch")
+                ogr_sif = st.text_input("Şifrenizi Belirleyin", type="password", key="secured_input_teacher_password")
                 
-                if st.button("Öğretmen Hesabımı Oluştur", type="primary", use_container_width=True):
+                if st.button("Öğretmen Hesabımı Oluştur", type="primary", use_container_width=True, key="secured_key_btn_teacher_register_submit"):
                     if ogr_ad and ogr_tc and ogr_sif and secili_okul:
                         if db.query(User).filter(User.username == ogr_tc.strip()).first():
                             st.error("❌ Bu Kullanıcı Adı / TC zaten sistemde kayıtlı.")
