@@ -112,9 +112,10 @@ def giris_ekrani():
     db = get_db()
     
     # SÜPER ADMİN HESABI YOKSA OTOMATİK OLUŞTUR (Giriş: admin / admin123)
+    # SÜPER ADMİN HESABI YOKSA OTOMATİK OLUŞTUR (Giriş: admin / admin123)
     super_admin_var = db.query(User).filter(User.role == "super_admin").first()
     if not super_admin_var:
-        db.add(User(school_id=0, role="super_admin", username="admin", email="admin", password_hash=sifre_olustur("admin123"), name_surname="Süper Admin", is_approved=True))
+        db.add(User(school_id=None, role="super_admin", username="admin", email="admin", password_hash=sifre_olustur("admin123"), name_surname="Süper Admin", is_approved=True))
         db.commit()
 
     sys_set = db.query(SystemSetting).first()
