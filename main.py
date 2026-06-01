@@ -20,8 +20,10 @@ from app.models import (
 # 3. Güvenlik ve şifreleme fonksiyonlarını içeri aktarıyoruz
 from app.auth import sifre_dogrula, sifre_olustur
 
-# Veritabanı tablolarını oluştur
-Base.metadata.create_all(bind=engine)
+# Veritabanı tablolarını oluştur (Her tıklamada çalışıp sistemi yavaşlatmaması için zırhlandırıldı)
+if "tablolar_kuruldu_mu" not in st.session_state:
+    Base.metadata.create_all(bind=engine)
+    st.session_state["tablolar_kuruldu_mu"] = True
 
 # Sayfa Ayarları (Yalnızca bir kez en başta çağrılmalıdır)
 st.set_page_config(page_title="Nöbet Yönetim Sistemi v4.0", page_icon="🏫", layout="wide", initial_sidebar_state="collapsed")
