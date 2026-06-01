@@ -141,14 +141,13 @@ def giris_ekrani():
             <p style="color:#64748b;font-size:0.95rem;font-weight:500;">Sıraç Aksan — Profesyonel AI Nöbet Otomasyonu v4.0</p>
         </div>""", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------
-        # KULLANIM KILAVUZU BUTONLARI (Key Parametreleri Tamamen Güçlendirildi)
-        # -------------------------------------------------------------
+        import time
+        # KULLANIM KILAVUZU BUTONLARI (Zaman damgası ile tamamen eşsizleştirildi)
         st.markdown('<p style="text-align:center; font-weight:600; color:#1e293b; margin-bottom:10px;">Sistemimizi yakından tanımak için kılavuzlarımızı inceleyin:</p>', unsafe_allow_html=True)
         k1, k2 = st.columns(2)
-        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True, key="secured_key_btn_idareci_kilavuz_oku"):
+        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True, key=f"idareci_btn_{int(time.time())}"):
             okul_kilavuz_popup()
-        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True, key="secured_key_btn_sinif_kilavuz_oku"):
+        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True, key=f"sinif_btn_{int(time.time())}"):
             sinif_kilavuz_popup()
         
         st.write("<br>", unsafe_allow_html=True)
