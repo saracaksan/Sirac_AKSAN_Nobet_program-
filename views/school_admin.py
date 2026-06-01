@@ -680,7 +680,7 @@ def render_school_admin():
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
                 db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Ogretmen_Nobeti").delete()
-            "Temizlendi."); st.session_state.pop('ai_rapor_hi', None); st.rerun()
+            st.success("Temizlendi."); st.session_state.pop('ai_rapor_hi', None); st.rerun()
 
         if 'ai_rapor_hi' in st.session_state: st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hi"]}</div>', unsafe_allow_html=True)
 
