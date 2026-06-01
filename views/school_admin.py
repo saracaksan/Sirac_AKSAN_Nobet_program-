@@ -230,7 +230,8 @@ def get_algo_description(algo_name):
         "1. Sabit Gün – Döngüsel Yer (Önerilen)": "📌 Öğretmenin nöbet günü sabittir (Müsaitlik Matrisi 🟢 günler). Görev yeri her nöbette döngüsel değişir. Tüm bölgeler eşit kullanılır.",
         "2. Sabit Gün – Sabit Yer": "📌 Hem nöbet günü hem görev yeri değişmez. Sabit kurallar sekmesinden ayarlanır.",
         "3. Tam Döngüsel (Gün ve Yer Değişir)": "📌 Her hafta hem gün hem yer döner. Müsait olan herkese eşit sırayla verilir. Maksimum adaleti sağlar.",
-        "4. Adalet Puanı ve Dinamik Joker (Yapay Zeka)": "📌 Nöbet sayıları ve raporlu günleri analiz edip eşitliği sağlamaya çalışır. Boşlukları doldurur."
+        "4. Adalet Puanı ve Dinamik Joker (Yapay Zeka)": "📌 Nöbet sayıları ve raporlu günleri analiz edip eşitliği sağlamaya çalışır. Boşlukları doldurur.",
+        "5. Katı Müsaitlik Matrisi (Sadece İsteklere Göre)": "📌 Sistemi zorlamaz. Sadece öğretmenin Müsaitlik Matrisinde belirttiği (🟢 Kesin ve 🟡 Joker) günlere nöbet yazar. Eğer gün boş kalırsa ekstra görev atamaz, boş bırakır."
     }
     return f'<div class="info-box">{descs.get(algo_name, "")}</div>'
 
@@ -459,41 +460,42 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
             haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
             joker_atanan+=1; toplam_atanan+=1
 
-    # FAZ 4: ÜÇÜNCÜ NÖBETLER
-    for g in range(1, bit.day+1):
-        islem_tarihi = date(yil,ay,g)
-        hw = islem_tarihi.weekday()
-        week_num = get_week_number(islem_tarihi)
-        if islem_tarihi in oto_tatil or islem_tarihi in man_tatil: continue
-        if is_weekend and hw<5: continue
-        if not is_weekend and hw>=5: continue
+    # FAZ 4: ÜÇÜNCÜ NÖBETLER (Eğer 'Katı Müsaitlik' algoritması seçilmediyse çalışır)
+    if algoritma != "5. Katı Müsaitlik Matrisi (Sadece İsteklere Göre)":
+        for g in range(1, bit.day+1):
+            islem_tarihi = date(yil,ay,g)
+            hw = islem_tarihi.weekday()
+            week_num = get_week_number(islem_tarihi)
+            if islem_tarihi in oto_tatil or islem_tarihi in man_tatil: continue
+            if is_weekend and hw<5: continue
+            if not is_weekend and hw>=5: continue
 
-        atanan_b = [n.location_id for n in db.query(DutySchedule).filter(DutySchedule.date==islem_tarihi).all()]
-        gunluk_atanan = [n.teacher_id for n in db.query(DutySchedule).filter(DutySchedule.date==islem_tarihi).all()]
-        bosta_bolgeler = [b for b in bolgeler if b.id not in atanan_b]
-        if not bosta_bolgeler: continue
+            atanan_b = [n.location_id for n in db.query(DutySchedule).filter(DutySchedule.date==islem_tarihi).all()]
+            gunluk_atanan = [n.teacher_id for n in db.query(DutySchedule).filter(DutySchedule.date==islem_tarihi).all()]
+            bosta_bolgeler = [b for b in bolgeler if b.id not in atanan_b]
+            if not bosta_bolgeler: continue
 
-        ogr_extra = []
-        for o in ogretmenler:
-            if o.id in gunluk_atanan: continue
-            izin = any(m.teacher_id==o.id and m.start_date<=islem_tarihi<=m.end_date for m in mazeretler)
-            engel= any(dp.teacher_id==o.id and dp.blocked_date==islem_tarihi for dp in ozel_kapat)
-            stat = STATUS_MAP.get(musaitlik.get(o.id,{}).get(hw,"🟢 1. Nöbet (Kesin İstiyorum)"), "primary")
-            if not izin and not engel and stat != "unavail":
-                ogr_extra.append(o)
-                
-        ogr_extra.sort(key=lambda x: (x.monthly_duty_count or 0, x.yearly_duty_count or 0))
+            ogr_extra = []
+            for o in ogretmenler:
+                if o.id in gunluk_atanan: continue
+                izin = any(m.teacher_id==o.id and m.start_date<=islem_tarihi<=m.end_date for m in mazeretler)
+                engel= any(dp.teacher_id==o.id and dp.blocked_date==islem_tarihi for dp in ozel_kapat)
+                stat = STATUS_MAP.get(musaitlik.get(o.id,{}).get(hw,"🟢 1. Nöbet (Kesin İstiyorum)"), "primary")
+                if not izin and not engel and stat != "unavail":
+                    ogr_extra.append(o)
+                    
+            ogr_extra.sort(key=lambda x: (x.monthly_duty_count or 0, x.yearly_duty_count or 0))
 
-        for secilen in ogr_extra:
-            if not bosta_bolgeler: break
-            hedef_bolge = bosta_bolgeler.pop(0)
-            nbt = DutySchedule(school_id=school_id,date=islem_tarihi,duty_type=duty_type,teacher_id=secilen.id,location_id=hedef_bolge.id,status="3. Nöbet")
-            db.add(nbt); db.commit(); db.refresh(nbt)
-            secilen.monthly_duty_count = (secilen.monthly_duty_count or 0)+1
-            secilen.yearly_duty_count  = (secilen.yearly_duty_count  or 0)+1
-            gunluk_atanan.append(secilen.id)
-            haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
-            ekstra_atanan+=1; toplam_atanan+=1
+            for secilen in ogr_extra:
+                if not bosta_bolgeler: break
+                hedef_bolge = bosta_bolgeler.pop(0)
+                nbt = DutySchedule(school_id=school_id,date=islem_tarihi,duty_type=duty_type,teacher_id=secilen.id,location_id=hedef_bolge.id,status="3. Nöbet")
+                db.add(nbt); db.commit(); db.refresh(nbt)
+                secilen.monthly_duty_count = (secilen.monthly_duty_count or 0)+1
+                secilen.yearly_duty_count  = (secilen.yearly_duty_count  or 0)+1
+                gunluk_atanan.append(secilen.id)
+                haftalik_nobetler[secilen.id][week_num] = haftalik_nobetler[secilen.id].get(week_num,0)+1
+                ekstra_atanan+=1; toplam_atanan+=1
 
     # FAZ 5: YEDEK ATAMA (Sadece Excel İçin)
     for g in range(1, bit.day+1):
