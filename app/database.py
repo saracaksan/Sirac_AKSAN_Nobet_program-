@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 # 1. Render üzerinden gelen Supabase linkini çek, yoksa yerelde sqlite kullan
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 
-# 🔥 KORUMA KALKANI: Eğer linkin sonunda pgbouncer gibi psycopg2'yi bozan parametreler varsa temizle
+# KORUMA KALKANI: pgbouncer gibi psycopg2'yi bozan parametreleri temizle
 if "?" in SQLALCHEMY_DATABASE_URL:
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.split("?")[0]
 
@@ -19,9 +19,6 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# 🔥 STREAMLIT İÇİN DÜZELTİLEN KISIM (yield yerine doğrudan return)
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    return SessionLocal()
