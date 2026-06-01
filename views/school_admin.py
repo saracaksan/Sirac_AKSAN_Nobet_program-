@@ -19,7 +19,8 @@ ALGO_LISTESI = [
     "1. Sabit Gün – Döngüsel Yer (Önerilen)",
     "2. Sabit Gün – Sabit Yer",
     "3. Tam Döngüsel (Gün ve Yer Değişir)",
-    "4. Adalet Puanı ve Dinamik Joker (Yapay Zeka)"
+    "4. Adalet Puanı ve Dinamik Joker (Yapay Zeka)",
+    "5. Katı Müsaitlik Matrisi (Sadece İsteklere Göre)"
 ]
 
 STATUS_MAP = {
