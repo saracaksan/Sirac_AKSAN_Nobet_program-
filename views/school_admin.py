@@ -315,7 +315,6 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
         DutySchedule.duty_type==duty_type
     ).all()
     for en in eski:
-        # Öğretmenin sayacından bu nöbeti geri düş
         ogr_guncelle = db.query(User).filter(User.id == en.teacher_id).first()
         if ogr_guncelle:
             ogr_guncelle.monthly_duty_count = max(0, (ogr_guncelle.monthly_duty_count or 0) - 1)
@@ -334,10 +333,7 @@ def akilli_dagitim(db, school_id, yil, ay, is_weekend=False, algoritma="1. Sabit
     musaitlik    = get_musaitlik(db, school_id)
 
     toplam_atanan = sabit_atanan = joker_atanan = ekstra_atanan = 0
-    toplam_atanan = sabit_atanan = joker_atanan = ekstra_atanan = 0
-    haftalik_nobetler = {ogr.id: {} for ogr in ogretmenler}  # BİR TEK BU SATIRI EKLE
-
-    def get_week_number(d): return d.isocalendar()[1]
+    haftalik_nobetler = {ogr.id: {} for ogr in ogretmenler}  
 
     def get_week_number(d): return d.isocalendar()[1]
 
@@ -666,25 +662,30 @@ def render_school_admin():
         
         if col_dist.button("✨ Otomatik Dağıt (Hafta İçi)", type="primary", use_container_width=True):
             ok, msg, rapor = akilli_dagitim(db, okul.id, sec_yil, sec_ay, is_weekend=False, algoritma=sec_algo)
-            if ok: st.success(msg); st.session_state['ai_rapor_hi'] = rapor; st.rerun()
-            else: st.error(msg)
+            if ok: 
+                st.session_state['ai_rapor_hi'] = rapor
+                st.success(msg)
+                st.rerun()
+            else: 
+                st.error(msg)
                 
         if col_clear.button("🗑️ Temizle", use_container_width=True):
             bas, bit = date(sec_yil, sec_ay, 1), date(sec_yil, sec_ay, calendar.monthrange(sec_yil, sec_ay)[1])
             eski = db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Ogretmen_Nobeti").all()
             for e in eski:
-                # Silinen nöbeti öğretmenin sayacından düş
                 ogr_guncelle = db.query(User).filter(User.id == e.teacher_id).first()
                 if ogr_guncelle:
                     ogr_guncelle.monthly_duty_count = max(0, (ogr_guncelle.monthly_duty_count or 0) - 1)
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
                 db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Ogretmen_Nobeti").delete()
+            db.commit()
             st.success("Temizlendi.")
-st.session_state.pop('ai_rapor_hi', None)
-st.rerun()
+            st.session_state.pop('ai_rapor_hi', None)
+            st.rerun()
 
-        if 'ai_rapor_hi' in st.session_state: st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hi"]}</div>', unsafe_allow_html=True)
+        if 'ai_rapor_hi' in st.session_state: 
+            st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hi"]}</div>', unsafe_allow_html=True)
 
         program = db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, extract('month', DutySchedule.date) == sec_ay, extract('year',  DutySchedule.date) == sec_yil, DutySchedule.duty_type == "Ogretmen_Nobeti").all()
 
@@ -756,22 +757,30 @@ st.rerun()
         c_da, c_cl = st.columns([3, 1])
         if c_da.button("✨ Otomatik Dağıt (Hafta Sonu)", type="primary", use_container_width=True):
             ok, msg, rapor = akilli_dagitim(db, okul.id, hs_yil, hs_ay, is_weekend=True, algoritma=hs_algo)
-            if ok: st.success(msg); st.session_state['ai_rapor_hs'] = rapor; st.rerun()
-            else: st.error(msg)
+            if ok: 
+                st.session_state['ai_rapor_hs'] = rapor
+                st.success(msg)
+                st.rerun()
+            else: 
+                st.error(msg)
+                
         if c_cl.button("🗑️ Temizle  ", use_container_width=True):
             bas, bit = date(hs_yil, hs_ay, 1), date(hs_yil, hs_ay, calendar.monthrange(hs_yil, hs_ay)[1])
             eski = db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Haftasonu").all()
             for e in eski:
-                # Silinen nöbeti öğretmenin sayacından düş
                 ogr_guncelle = db.query(User).filter(User.id == e.teacher_id).first()
                 if ogr_guncelle:
                     ogr_guncelle.monthly_duty_count = max(0, (ogr_guncelle.monthly_duty_count or 0) - 1)
                     ogr_guncelle.yearly_duty_count = max(0, (ogr_guncelle.yearly_duty_count or 0) - 1)
-                st.success("Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
+                db.query(DutySubstitute).filter(DutySubstitute.duty_id==e.id).delete()
             db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, DutySchedule.date >= bas, DutySchedule.date <= bit, DutySchedule.duty_type == "Haftasonu").delete()
-            "Silindi."); st.session_state.pop('ai_rapor_hs', None); st.rerun()
+            db.commit()
+            st.success("Silindi.")
+            st.session_state.pop('ai_rapor_hs', None)
+            st.rerun()
 
-        if 'ai_rapor_hs' in st.session_state: st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hs"]}</div>', unsafe_allow_html=True)
+        if 'ai_rapor_hs' in st.session_state: 
+            st.markdown(f'<div class="ai-box">{st.session_state["ai_rapor_hs"]}</div>', unsafe_allow_html=True)
 
         hs_prog = db.query(DutySchedule).filter(DutySchedule.school_id == okul.id, extract('month', DutySchedule.date) == hs_ay, extract('year',  DutySchedule.date) == hs_yil, DutySchedule.duty_type == "Haftasonu").all()
         bolgeler_hs = [b for b in bolgeler_all if b.location_type == "Hafta Sonu"]
@@ -977,7 +986,6 @@ st.rerun()
                 obrans = f1.text_input("Branş")
                 osifre = f2.text_input("Şifre (Düz Metin)", value="1234")
                 if st.form_submit_button("➕ Yeni Öğretmen Ekle", type="primary") and oad and otc:
-                    # 🔥 KORUMA: Önce bu TC sistemde var mı diye bakıyoruz
                     mevcut = db.query(User).filter(User.username == otc.strip()).first()
                     if mevcut:
                         st.error("❌ Bu TC / Kullanıcı Adı zaten sistemde kayıtlı!")
@@ -988,7 +996,7 @@ st.rerun()
                             db.commit()
                             st.success("✅ Öğretmen başarıyla eklendi!")
                         except Exception:
-                            db.rollback() # Çökmeyi engelle
+                            db.rollback()
                             st.error("❌ Veritabanı hatası. Bu kayıt eklenemedi.")
                         st.rerun()
 
@@ -1035,7 +1043,6 @@ st.rerun()
                     ogr_tc = str(row.get("TC/Kullanıcı Adı", "")).strip()
                     
                     if ogr_tc and ogr_tc != "nan" and ogr_ad and ogr_ad != "nan":
-                        # Mükerrer TC kontrolü
                         mevcut = db.query(User).filter(User.username == ogr_tc).first()
                         if not mevcut:
                             brans = str(row.get("Branş", "")).strip() if "Branş" in row and str(row.get("Branş", "")) != "nan" else ""
