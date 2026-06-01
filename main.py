@@ -144,9 +144,9 @@ def giris_ekrani():
         # KULLANIM KILAVUZU BUTONLARI
         st.markdown('<p style="text-align:center; font-weight:600; color:#1e293b; margin-bottom:10px;">Sistemimizi yakından tanımak için kılavuzlarimizi inceleyin:</p>', unsafe_allow_html=True)
         k1, k2 = st.columns(2)
-        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True):
+        if k1.button("📘 İdareci Kılavuzunu Oku", use_container_width=True, key="btn_ana_idareci_kilavuz"):
             okul_kilavuz_popup()
-        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True):
+        if k2.button("📙 Sınıf Öğretmeni Kılavuzu", use_container_width=True, key="btn_ana_sinif_kilavuz"):
             sinif_kilavuz_popup()
         
         st.write("<br>", unsafe_allow_html=True)
