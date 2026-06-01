@@ -1016,23 +1016,56 @@ def render_school_admin():
                         db.delete(o); db.commit(); st.rerun()
                         
         with c_toplu:
-            df_tpl=pd.DataFrame(columns=["Ad Soyad","TC / Kullanıcı Adı","Branş","Şifre"])
-            buf_t=io.BytesIO()
-            with pd.ExcelWriter(buf_t,engine='openpyxl') as w: df_tpl.to_excel(w,index=False,sheet_name='Ogretmenler')
-            st.download_button("📥 Şablon İndir",data=buf_t.getvalue(),file_name="Ogretmen_Sablonu.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            uf=st.file_uploader("📤 Şablon Yükle",type=["xlsx","xls"])
-            if uf and st.button("🚀 Toplu Ekle",type="primary"):
-                df=pd.read_excel(uf); eklenen=atlanan=0
-                for _,row in df.iterrows():
-                    ad=str(row.get("Ad Soyad","")).strip(); tc=str(row.get("TC / Kullanıcı Adı","")).strip()
-                    brans=str(row.get("Branş","")).strip(); sifre_raw=str(row.get("Şifre","1234")).strip()
-                    sifre=sifre_raw if sifre_raw and sifre_raw!="nan" else "1234"
-                    if ad and ad!="nan" and tc and tc!="nan":
-                        if not db.query(User).filter(User.username==tc).first():
-                            db.add(User(school_id=okul.id,role="ogretmen",username=tc,email=f"{tc}@meb",password_hash=sifre_olustur(sifre),plain_password=sifre,name_surname=ad,branch=brans if brans!="nan" else "",is_approved=True,status="Aktif"))
-                            eklenen+=1
-                        else: atlanan+=1
-                db.commit(); st.success(f"✅ {eklenen} eklendi! ({atlanan} mevcut)"); st.rerun()
+            df_template = pd.DataFrame(columns=["Ad Soyad", "TC/Kullanıcı Adı", "Branş"])
+            buf_template = io.BytesIO()
+            with pd.ExcelWriter(buf_template, engine='openpyxl') as w:
+                df_template.to_excel(w, index=False, sheet_name='Ogretmenler')
+            st.download_button("📥 Excel Şablonu İndir", data=buf_template.getvalue(), file_name="Ogretmen_Ekleme_Sablonu.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
+            uploaded_file = st.file_uploader("📤 Şablonu Yükle", type=["xlsx", "xls"], key="excel_uploader_ogr")
+            if uploaded_file and st.button("🚀 Toplu Ekle", type="primary", key="btn_excel_toplu_ekle"):
+                df = pd.read_excel(uploaded_file)
+                eklenen = 0
+                atlanan = 0
+                
+                for index, row in df.iterrows():
+                    ogr_ad = str(row.get("Ad Soyad", "")).strip()
+                    ogr_tc = str(row.get("TC/Kullanıcı Adı", "")).strip()
+                    
+                    if ogr_tc and ogr_tc != "nan" and ogr_ad and ogr_ad != "nan":
+                        # Mükerrer TC kontrolü
+                        mevcut = db.query(User).filter(User.username == ogr_tc).first()
+                        if not mevcut:
+                            brans = str(row.get("Branş", "")).strip() if "Branş" in row and str(row.get("Branş", "")) != "nan" else ""
+                            yeni_ogr = User(
+                                school_id=okul.id,
+                                role="ogretmen",
+                                username=ogr_tc,
+                                password_hash=sifre_olustur(ogr_tc + "47"),
+                                plain_password=ogr_tc + "47",
+                                name_surname=ogr_ad,
+                                branch=brans,
+                                email=f"{ogr_tc}@meb",
+                                is_approved=True,
+                                status="Aktif",
+                                monthly_duty_count=0,
+                                yearly_duty_count=0,
+                                seniority_years=1
+                            )
+                            db.add(yeni_ogr)
+                            
+                            # 🔥 POSTGRESQL ZIRHI: Kaydı anında yap, hata çıkarsa sadece bu satırı iptal et
+                            try:
+                                db.commit() 
+                                eklenen += 1
+                            except Exception:
+                                db.rollback() 
+                                atlanan += 1
+                        else:
+                            atlanan += 1
+                            
+                st.success(f"✅ {eklenen} öğretmen başarıyla eklendi! ({atlanan} kayıt mevcut veya hatalı olduğu için atlandı.)")
+                st.rerun()
 
         with c_idare:
             st.markdown('**Okul Müdürü Yönetimi**')
