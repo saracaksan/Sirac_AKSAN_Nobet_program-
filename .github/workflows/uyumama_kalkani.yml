@@ -1,0 +1,16 @@
+name: "Render ve Supabase Uyumama Kalkanı"
+
+on:
+  schedule:
+    # Her 10 dakikada bir otomatik çalışması için tetikleyici (Cron Job)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # İstediğiniz zaman GitHub panelinden elle de başlatabilmeniz için
+
+jobs:
+  ping_sunucu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Sıraç Aksan Nöbet Sistemine İstek Gönderiliyor"
+        run: |
+          curl -I -s https://sirac-aksan-nobet-program.onrender.com
+          echo "Kalkan başarıyla çalıştırıldı, Render ve Supabase uyanık tutuldu!"
